@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday!</title>
+    <style>
+        body {
+            background-color: #1a1a2e;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        #start-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background-color: #e94560;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        #cake-container {
+            display: none;
+            position: relative;
+            margin-top: 100px;
+        }
+
+        /* The Cake Base */
+        .cake {
+            width: 250px;
+            height: 100px;
+            background-color: #f7a8b8;
+            border-radius: 10px 10px 0 0;
+            position: relative;
+            border-bottom: 15px solid #d37c8e;
+            box-shadow: inset 0 -20px rgba(0,0,0,0.1);
+        }
+
+        /* The Candles */
+        .candles {
+            display: flex;
+            justify-content: space-around;
+            width: 80%;
+            position: absolute;
+            bottom: 100%;
+            left: 10%;
+        }
+
+        .candle-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .candle {
+            width: 12px;
+            height: 40px;
+            background: repeating-linear-gradient(
+                45deg,
+                #fff,
+                #fff 5px,
+                #ffb3c6 5px,
+                #ffb3c6 10px
+            );
+            border-radius: 3px;
+        }
+
+        /* The Flames */
+        .flame {
+            width: 16px;
+            height: 24px;
+            background-color: #ff9d00;
+            border-radius: 50% 50% 20% 20%;
+            box-shadow: 0 0 15px #ff9d00, 0 0 30px #ff5100;
+            animation: flicker 0.1s infinite alternate;
+            margin-bottom: 2px;
+            transition: opacity 0.3s ease;
+        }
+
+        .flame.out {
+            opacity: 0;
+            animation: none;
+            box-shadow: none;
+        }
+
+        @keyframes flicker {
+            0% { transform: scale(1) rotate(-1deg); }
+            100% { transform: scale(1.1) rotate(2deg); background-color: #ffc107; }
+        }
+
+        /* The Reveal Screen */
+        #reveal-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            animation: fadeIn 2s ease forwards;
+        }
+
+        #reveal-screen h1 {
+            color: #ffcf40;
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mic feedback indicator (optional, good for debugging) */
+        #mic-level {
+            margin-top: 50px;
+            width: 200px;
+            height: 10px;
+            background: #333;
+            border-radius: 5px;
+            overflow: hidden;
+            display: none; /* Change to block if you want to see the volume bar */
+        }
+        #mic-bar {
+            height: 100%;
+            width: 0%;
+            background: #4caf50;
+            transition: width 0.1s;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h2>Ready for your cake?</h2>
+        <p>(Make sure to allow microphone access so you can blow out the candles!)</p>
+        <button id="start-btn">Bring out the Cake</button>
+    </div>
+
+    <div id="cake-container">
+        <div class="cake">
+            <div class="candles">
+                <div class="candle-wrapper"><div class="flame"></div><div class="candle"></div></div>
+                <div class="candle-wrapper"><div class="flame"></div><div class="candle"></div></div>
+                <div class="candle-wrapper"><div class="flame"></div><div class="candle"></div></div>
+            </div>
+        </div>
+        <div id="mic-level"><div id="mic-bar"></div></div>
+    </div>
+
+    <div id="reveal-screen">
+        <h1>Happy Birthday! 🎉</h1>
+        <p>Replace this text with your heartfelt message, a joke, or an IOU for dinner!</p>
+        </div>
+
+    <script>
+        const startBtn = document.getElementById('start-btn');
+        const startScreen = document.getElementById('start-screen');
+        const cakeContainer = document.getElementById('cake-container');
+        const revealScreen = document.getElementById('reveal-screen');
+        const flames = document.querySelectorAll('.flame');
+        const micBar = document.getElementById('mic-bar');
+
+        let audioContext;
+        let analyser;
+        let microphone;
+        let activeCandles = flames.length;
+        let isBlowing = false;
+
+        // Configuration
+        const BLOW_THRESHOLD = 80; // Tweak this: higher = harder to blow out
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                // Request Mic access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Switch UI
+                startScreen.style.display = 'none';
+                cakeContainer.style.display = 'block';
+
+                // Set up Audio Context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                
+                microphone.connect(analyser);
+                analyser.fftSize = 256;
+
+                // Start listening loop
+                checkVolume();
+                
+            } catch (err) {
+                alert("Oops! You need to allow microphone access to blow out the candles.");
+                console.error(err);
+            }
+        });
+
+        function checkVolume() {
+            if (activeCandles <= 0) return; // Stop if all candles are out
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Calculate average volume
+            let sum = 0;
+            for(let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i];
+            }
+            let averageVolume = sum / bufferLength;
+
+            // Visual feedback for debugging
+            micBar.style.width = averageVolume + '%';
+
+            // Check if volume passes the threshold
+            if (averageVolume > BLOW_THRESHOLD && !isBlowing) {
+                isBlowing = true;
+                blowOutOneCandle();
+                
+                // Prevent blowing them all out instantly in one breath
+                setTimeout(() => { isBlowing = false; }, 500); 
+            }
+
+            // Loop
+            requestAnimationFrame(checkVolume);
+        }
+
+        function blowOutOneCandle() {
+            // Find the first candle that is still lit
+            for (let i = 0; i < flames.length; i++) {
+                if (!flames[i].classList.contains('out')) {
+                    flames[i].classList.add('out');
+                    activeCandles--;
+                    break;
+                }
+            }
+
+            // If all candles are out, trigger the reveal
+            if (activeCandles === 0) {
+                setTimeout(() => {
+                    cakeContainer.style.display = 'none';
+                    revealScreen.style.display = 'flex';
+                }, 1000); // Wait 1 second after last candle goes out
+            }
+        }
+    </script>
+</body>
+</html>
