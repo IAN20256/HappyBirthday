@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Happy Birthday!</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
     <style>
         body {
             background-color: #1a1a2e;
@@ -17,15 +20,38 @@
             margin: 0;
             overflow: hidden;
             text-align: center;
+            position: relative;
+        }
+
+        /* Language Toggle Button */
+        #lang-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        #lang-toggle:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
         }
 
         #start-screen {
             display: flex;
             flex-direction: column;
             align-items: center;
+            transition: opacity 0.5s ease;
         }
 
-        button {
+        button.action-btn {
             padding: 15px 30px;
             font-size: 1.2rem;
             background-color: #e94560;
@@ -34,17 +60,46 @@
             border-radius: 8px;
             cursor: pointer;
             margin-top: 20px;
-            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        button:hover {
-            transform: scale(1.05);
+        button.action-btn:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(233, 69, 96, 0.6);
+        }
+
+        /* Failsafe Button Styles */
+        button.failsafe-btn {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            background-color: transparent;
+            color: rgba(255,255,255,0.6);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 40px;
+            transition: all 0.2s;
+        }
+
+        button.failsafe-btn:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
         }
 
         #cake-container {
             display: none;
             position: relative;
             margin-top: 100px;
+            animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            /* Flex layout to center the cake and failsafe button properly */
+            flex-direction: column;
+            align-items: center;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5) translateY(50px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
         }
 
         /* The Cake Base */
@@ -55,7 +110,7 @@
             border-radius: 10px 10px 0 0;
             position: relative;
             border-bottom: 15px solid #d37c8e;
-            box-shadow: inset 0 -20px rgba(0,0,0,0.1);
+            box-shadow: inset 0 -20px rgba(0,0,0,0.1), 0 10px 20px rgba(0,0,0,0.3);
         }
 
         /* The Candles */
@@ -86,6 +141,7 @@
                 #ffb3c6 10px
             );
             border-radius: 3px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
         }
 
         /* The Flames */
@@ -97,18 +153,39 @@
             box-shadow: 0 0 15px #ff9d00, 0 0 30px #ff5100;
             animation: flicker 0.1s infinite alternate;
             margin-bottom: 2px;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform-origin: bottom center;
         }
 
         .flame.out {
             opacity: 0;
             animation: none;
             box-shadow: none;
+            transform: scale(0);
         }
 
         @keyframes flicker {
-            0% { transform: scale(1) rotate(-1deg); }
+            0% { transform: scale(1) rotate(-2deg); }
             100% { transform: scale(1.1) rotate(2deg); background-color: #ffc107; }
+        }
+
+        /* Smoke Animation */
+        .smoke {
+            position: absolute;
+            top: -10px;
+            width: 8px;
+            height: 8px;
+            background: rgba(200, 200, 200, 0.8);
+            border-radius: 50%;
+            opacity: 0;
+            pointer-events: none;
+            animation: riseSmoke 1s ease-out forwards;
+        }
+
+        @keyframes riseSmoke {
+            0% { transform: translateY(0) scale(1); opacity: 0.8; }
+            50% { opacity: 0.4; }
+            100% { transform: translateY(-40px) scale(3); opacity: 0; }
         }
 
         /* The Reveal Screen */
@@ -116,29 +193,38 @@
             display: none;
             flex-direction: column;
             align-items: center;
-            animation: fadeIn 2s ease forwards;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+            z-index: 5;
         }
 
-        #reveal-screen h1 {
+        #reveal-screen.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        #text-bday-title {
             color: #ffcf40;
-            font-size: 3rem;
-            margin-bottom: 10px;
+            font-size: 4rem;
+            margin-bottom: 0;
+            text-shadow: 0 0 20px rgba(255, 207, 64, 0.4);
+            animation: float 3s ease-in-out infinite;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
 
-        /* Mic feedback indicator (optional, good for debugging) */
+        /* Mic feedback indicator */
         #mic-level {
-            margin-top: 50px;
+            margin-top: 30px;
             width: 200px;
-            height: 10px;
-            background: #333;
-            border-radius: 5px;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
             overflow: hidden;
-            display: none; /* Change to block if you want to see the volume bar */
+            display: none; 
         }
         #mic-bar {
             height: 100%;
@@ -151,10 +237,12 @@
 </head>
 <body>
 
+    <button id="lang-toggle">ESP</button>
+
     <div id="start-screen">
-        <h2>Ready for your cake?</h2>
-        <p>(Make sure to allow microphone access so you can blow out the candles!)</p>
-        <button id="start-btn">Bring out the Cake</button>
+        <h2 id="text-ready-title">Ready for your cake?</h2>
+        <p id="text-ready-desc">(Make sure to allow microphone access so you can blow out the candles!)</p>
+        <button id="start-btn" class="action-btn">Bring out the Cake</button>
     </div>
 
     <div id="cake-container">
@@ -166,40 +254,84 @@
             </div>
         </div>
         <div id="mic-level"><div id="mic-bar"></div></div>
+        
+        <button id="failsafe-btn" class="failsafe-btn">Mic not working? Tap to blow</button>
     </div>
 
     <div id="reveal-screen">
-        <h1>Happy Birthday! 🎉</h1>
-        <p>Replace this text with your heartfelt message, a joke, or an IOU for dinner!</p>
-        </div>
+        <h1 id="text-bday-title">Happy Birthday! 🎉</h1>
+    </div>
 
     <script>
+        // Dictionary for Translations
+        const dict = {
+            en: {
+                readyTitle: "Ready for your cake?",
+                readyDesc: "(Make sure to allow microphone access so you can blow out the candles!)",
+                startBtn: "Bring out the Cake",
+                bdayTitle: "Happy Birthday! 🎉",
+                toggleTxt: "ESP",
+                failsafeBtn: "Mic not working? Tap to blow"
+            },
+            es: {
+                readyTitle: "¿Listo para tu pastel?",
+                readyDesc: "(¡Asegúrate de permitir el acceso al micrófono para poder apagar las velas!)",
+                startBtn: "Traer el Pastel",
+                bdayTitle: "¡Feliz Cumpleaños! 🎉",
+                toggleTxt: "ENG",
+                failsafeBtn: "¿No funciona el micrófono? Toca para soplar"
+            }
+        };
+
+        let currentLang = 'en';
+
+        // DOM Elements
+        const langToggle = document.getElementById('lang-toggle');
+        const textReadyTitle = document.getElementById('text-ready-title');
+        const textReadyDesc = document.getElementById('text-ready-desc');
         const startBtn = document.getElementById('start-btn');
+        const textBdayTitle = document.getElementById('text-bday-title');
+        const failsafeBtn = document.getElementById('failsafe-btn');
+        
         const startScreen = document.getElementById('start-screen');
         const cakeContainer = document.getElementById('cake-container');
         const revealScreen = document.getElementById('reveal-screen');
-        const flames = document.querySelectorAll('.flame');
+        const candleWrappers = document.querySelectorAll('.candle-wrapper');
         const micBar = document.getElementById('mic-bar');
 
+        // Audio Variables
         let audioContext;
         let analyser;
         let microphone;
-        let activeCandles = flames.length;
+        let activeCandles = candleWrappers.length;
         let isBlowing = false;
 
         // Configuration
-        const BLOW_THRESHOLD = 80; // Tweak this: higher = harder to blow out
+        const BLOW_THRESHOLD = 60; 
 
+        // Language Toggle Logic
+        langToggle.addEventListener('click', () => {
+            currentLang = currentLang === 'en' ? 'es' : 'en';
+            
+            textReadyTitle.innerText = dict[currentLang].readyTitle;
+            textReadyDesc.innerText = dict[currentLang].readyDesc;
+            startBtn.innerText = dict[currentLang].startBtn;
+            textBdayTitle.innerText = dict[currentLang].bdayTitle;
+            failsafeBtn.innerText = dict[currentLang].failsafeBtn;
+            langToggle.innerText = dict[currentLang].toggleTxt;
+        });
+
+        // Start Experience
         startBtn.addEventListener('click', async () => {
             try {
-                // Request Mic access
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
-                // Switch UI
-                startScreen.style.display = 'none';
-                cakeContainer.style.display = 'block';
+                startScreen.style.opacity = '0';
+                setTimeout(() => {
+                    startScreen.style.display = 'none';
+                    cakeContainer.style.display = 'flex';
+                }, 500);
 
-                // Set up Audio Context
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioContext.createAnalyser();
                 microphone = audioContext.createMediaStreamSource(stream);
@@ -207,61 +339,89 @@
                 microphone.connect(analyser);
                 analyser.fftSize = 256;
 
-                // Start listening loop
                 checkVolume();
                 
             } catch (err) {
-                alert("Oops! You need to allow microphone access to blow out the candles.");
-                console.error(err);
+                // If they deny mic access, show the cake anyway so they can use the failsafe
+                startScreen.style.display = 'none';
+                cakeContainer.style.display = 'flex';
+                
+                const errorMsg = currentLang === 'es' ? 
+                    "¡Micrófono bloqueado! Usa el botón debajo del pastel para soplar." : 
+                    "Mic access blocked! Use the button below the cake to blow them out.";
+                console.error(errorMsg, err);
             }
         });
 
+        // Failsafe Button Logic
+        failsafeBtn.addEventListener('click', () => {
+            failsafeBtn.style.display = 'none'; // Hide button once clicked
+            
+            // Stagger the blowout effect automatically
+            let blowInterval = setInterval(() => {
+                if (activeCandles > 0) {
+                    blowOutOneCandle();
+                } else {
+                    clearInterval(blowInterval);
+                }
+            }, 350); 
+        });
+
         function checkVolume() {
-            if (activeCandles <= 0) return; // Stop if all candles are out
+            if (activeCandles <= 0) return;
 
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
             
-            // Calculate average volume
             let sum = 0;
             for(let i = 0; i < bufferLength; i++) {
                 sum += dataArray[i];
             }
             let averageVolume = sum / bufferLength;
 
-            // Visual feedback for debugging
             micBar.style.width = averageVolume + '%';
 
-            // Check if volume passes the threshold
             if (averageVolume > BLOW_THRESHOLD && !isBlowing) {
                 isBlowing = true;
                 blowOutOneCandle();
-                
-                // Prevent blowing them all out instantly in one breath
-                setTimeout(() => { isBlowing = false; }, 500); 
+                setTimeout(() => { isBlowing = false; }, 400); 
             }
 
-            // Loop
             requestAnimationFrame(checkVolume);
         }
 
         function blowOutOneCandle() {
-            // Find the first candle that is still lit
-            for (let i = 0; i < flames.length; i++) {
-                if (!flames[i].classList.contains('out')) {
-                    flames[i].classList.add('out');
+            for (let i = 0; i < candleWrappers.length; i++) {
+                const flame = candleWrappers[i].querySelector('.flame');
+                if (!flame.classList.contains('out')) {
+                    
+                    const smoke = document.createElement('div');
+                    smoke.classList.add('smoke');
+                    candleWrappers[i].appendChild(smoke);
+
+                    flame.classList.add('out');
                     activeCandles--;
                     break;
                 }
             }
 
-            // If all candles are out, trigger the reveal
+            // Reveal + Confetti
             if (activeCandles === 0) {
                 setTimeout(() => {
                     cakeContainer.style.display = 'none';
-                    revealScreen.style.display = 'flex';
-                }, 1000); // Wait 1 second after last candle goes out
+                    revealScreen.classList.add('show');
+                    
+                    // Trigger Confetti Cannon
+                    confetti({
+                        particleCount: 150,
+                        spread: 80,
+                        origin: { y: 0.6 },
+                        colors: ['#e94560', '#ffcf40', '#4caf50', '#ffffff', '#00bcd4'],
+                        zIndex: 1000
+                    });
+
+                }, 1200); 
             }
         }
     </script>
